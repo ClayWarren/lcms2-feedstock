@@ -1,6 +1,8 @@
 """Fork-only acceptance: native Python, ARM64 PE files, and LCMS DLL operations."""
 
 import ctypes
+import hashlib
+import json
 import os
 from pathlib import Path
 import platform
@@ -10,6 +12,13 @@ import sys
 
 assert platform.machine().lower() in {"arm64", "aarch64"}, platform.machine()
 prefix = Path(sys.prefix)
+records = list((prefix / "conda-meta").glob("lcms2-*.json"))
+assert len(records) == 1, records
+record = json.loads(records[0].read_text())
+assert record["url"].startswith("file:///C:/lcms-validation/bld/"), record["url"]
+artifact = Path("C:/lcms-validation/bld/win-arm64") / record["fn"]
+assert hashlib.sha256(artifact.read_bytes()).hexdigest() == record["sha256"]
+print(f"Local artifact provenance verified: {record['fn']}")
 bindir = prefix / "Library" / "bin"
 for filename in ("lcms2.dll", "jpgicc.exe", "tificc.exe", "linkicc.exe", "transicc.exe", "psicc.exe"):
     data = (bindir / filename).read_bytes()
