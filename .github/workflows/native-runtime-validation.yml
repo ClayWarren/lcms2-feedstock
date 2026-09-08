@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   native-runtime:
@@ -27,22 +28,22 @@ jobs:
           $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
           if ($arch -ne 'Arm64') { throw "Expected ARM64 OS, got $arch" }
           Write-Host "OS architecture: $arch"
-      - name: Build unchanged ARM64 recipe with cross tooling
-        shell: cmd
+      - name: Retrieve previously built and tested ARM64 artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set "flow_run_id=github_%GITHUB_RUN_ID%"
-          set "remote_url=https://github.com/%GITHUB_REPOSITORY%"
-          set "sha=%GITHUB_SHA%"
-          call .scripts\run_win_build.bat
-      - name: Run package tests on ARM64
-        shell: cmd
+          New-Item -ItemType Directory -Force C:\lcms-validation\bld\win-arm64 | Out-Null
+          gh run download 34272470436 --repo ClayWarren/lcms2-feedstock --name lcms2-win-arm64 --dir C:\lcms-validation\bld\win-arm64
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $artifact = 'C:\lcms-validation\bld\win-arm64\lcms2-2.19.1-hf15a58b_1.conda'
+          if ((Get-FileHash $artifact -Algorithm SHA256).Hash -ne '4555ec612aa6b38e6c5b6454e90da1dec3154a12d9e7284c1a19abbe24199150') { throw 'Unexpected package hash' }
+      - name: Provision conda tooling
+        shell: pwsh
         run: |
-          call C:\lcms-validation\Miniforge\Scripts\activate.bat
-          set "CONDA_SUBDIR=win-arm64"
-          for %%P in (C:\lcms-validation\bld\win-arm64\lcms2-*.conda) do (
-            call conda-build --test "%%P" -c conda-forge
-            if errorlevel 1 exit /b 1
-          )
+          Invoke-WebRequest https://github.com/mamba-org/micromamba-releases/releases/download/1.5.10-0/micromamba-win-64 -OutFile C:\lcms-validation\micromamba.exe
+          & C:\lcms-validation\micromamba.exe create -y -r C:\lcms-validation\mamba -p C:\lcms-validation\Miniforge --override-channels -c conda-forge python=3.12 conda conda-index
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install artifact with native Python
         shell: cmd
         run: |
@@ -50,7 +51,7 @@ jobs:
           set "CONDA_SUBDIR=win-arm64"
           call conda index C:\lcms-validation\bld
           if errorlevel 1 exit /b 1
-          call conda create -y -p C:\lcms-validation\runtime --override-channels -c file:///C:/lcms-validation/bld -c conda-forge --strict-channel-priority python=3.12 lcms2=2.19.1
+          call conda create -y -p C:\lcms-validation\runtime --override-channels -c file:///C:/lcms-validation/bld -c conda-forge --strict-channel-priority "python=3.14.*=*_cp314" lcms2=2.19.1
           if errorlevel 1 exit /b 1
           if not exist C:\lcms-validation\runtime\python.exe exit /b 1
           C:\lcms-validation\runtime\python.exe validation\native-runtime.py
