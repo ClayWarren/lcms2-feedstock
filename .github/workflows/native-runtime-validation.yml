@@ -16,8 +16,8 @@ jobs:
       CONFIG: win_arm64_
       BUILD_PLATFORM: win-64
       HOST_PLATFORM: win-arm64
-      MINIFORGE_HOME: D:\Miniforge
-      CONDA_BLD_PATH: D:\bld
+      MINIFORGE_HOME: C:\lcms-validation\Miniforge
+      CONDA_BLD_PATH: C:\lcms-validation\bld
       UPLOAD_PACKAGES: 'False'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -37,26 +37,26 @@ jobs:
       - name: Run package tests on ARM64
         shell: cmd
         run: |
-          call D:\Miniforge\Scripts\activate.bat
+          call C:\lcms-validation\Miniforge\Scripts\activate.bat
           set "CONDA_SUBDIR=win-arm64"
-          for %%P in (D:\bld\win-arm64\lcms2-*.conda) do (
+          for %%P in (C:\lcms-validation\bld\win-arm64\lcms2-*.conda) do (
             conda-build --test "%%P" -c conda-forge
             if errorlevel 1 exit /b 1
           )
       - name: Install artifact with native Python
         shell: cmd
         run: |
-          call D:\Miniforge\Scripts\activate.bat
+          call C:\lcms-validation\Miniforge\Scripts\activate.bat
           set "CONDA_SUBDIR=win-arm64"
-          for %%P in (D:\bld\win-arm64\lcms2-*.conda) do (
-            conda create -y -p D:\lcms-runtime --override-channels -c conda-forge --strict-channel-priority python=3.12 "%%P"
+          for %%P in (C:\lcms-validation\bld\win-arm64\lcms2-*.conda) do (
+            conda create -y -p C:\lcms-validation\runtime --override-channels -c conda-forge --strict-channel-priority python=3.12 "%%P"
             if errorlevel 1 exit /b 1
           )
-          if not exist D:\lcms-runtime\python.exe exit /b 1
-          D:\lcms-runtime\python.exe validation\native-runtime.py
+          if not exist C:\lcms-validation\runtime\python.exe exit /b 1
+          C:\lcms-validation\runtime\python.exe validation\native-runtime.py
       - name: Retain package for inspection
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: lcms2-win-arm64
-          path: D:\bld\win-arm64\lcms2-*.conda
+          path: C:\lcms-validation\bld\win-arm64\lcms2-*.conda
           if-no-files-found: error
