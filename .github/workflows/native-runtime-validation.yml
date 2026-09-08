@@ -40,7 +40,7 @@ jobs:
           call C:\lcms-validation\Miniforge\Scripts\activate.bat
           set "CONDA_SUBDIR=win-arm64"
           for %%P in (C:\lcms-validation\bld\win-arm64\lcms2-*.conda) do (
-            conda-build --test "%%P" -c conda-forge
+            call conda-build --test "%%P" -c conda-forge
             if errorlevel 1 exit /b 1
           )
       - name: Install artifact with native Python
@@ -48,9 +48,9 @@ jobs:
         run: |
           call C:\lcms-validation\Miniforge\Scripts\activate.bat
           set "CONDA_SUBDIR=win-arm64"
-          conda index C:\lcms-validation\bld
+          call conda index C:\lcms-validation\bld
           if errorlevel 1 exit /b 1
-          conda create -y -p C:\lcms-validation\runtime --override-channels -c file:///C:/lcms-validation/bld -c conda-forge --strict-channel-priority python=3.12 lcms2=2.19.1
+          call conda create -y -p C:\lcms-validation\runtime --override-channels -c file:///C:/lcms-validation/bld -c conda-forge --strict-channel-priority python=3.12 lcms2=2.19.1
           if errorlevel 1 exit /b 1
           if not exist C:\lcms-validation\runtime\python.exe exit /b 1
           C:\lcms-validation\runtime\python.exe validation\native-runtime.py
