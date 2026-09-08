@@ -1,0 +1,62 @@
+name: Native ARM64 runtime validation
+
+on:
+  push:
+    branches: [codex/lcms2-native-runtime-validation]
+
+permissions:
+  contents: read
+
+jobs:
+  native-runtime:
+    runs-on: windows-11-arm
+    timeout-minutes: 40
+    env:
+      CI: github_actions
+      CONFIG: win_arm64_
+      BUILD_PLATFORM: win-64
+      HOST_PLATFORM: win-arm64
+      MINIFORGE_HOME: D:\Miniforge
+      CONDA_BLD_PATH: D:\bld
+      UPLOAD_PACKAGES: 'False'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Attest ARM64 runner
+        shell: pwsh
+        run: |
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+          if ($arch -ne 'Arm64') { throw "Expected ARM64 OS, got $arch" }
+          Write-Host "OS architecture: $arch"
+      - name: Build unchanged ARM64 recipe with cross tooling
+        shell: cmd
+        run: |
+          set "flow_run_id=github_%GITHUB_RUN_ID%"
+          set "remote_url=https://github.com/%GITHUB_REPOSITORY%"
+          set "sha=%GITHUB_SHA%"
+          call .scripts\run_win_build.bat
+      - name: Run package tests on ARM64
+        shell: cmd
+        run: |
+          call D:\Miniforge\Scripts\activate.bat
+          set "CONDA_SUBDIR=win-arm64"
+          for %%P in (D:\bld\win-arm64\lcms2-*.conda) do (
+            conda-build --test "%%P" -c conda-forge
+            if errorlevel 1 exit /b 1
+          )
+      - name: Install artifact with native Python
+        shell: cmd
+        run: |
+          call D:\Miniforge\Scripts\activate.bat
+          set "CONDA_SUBDIR=win-arm64"
+          for %%P in (D:\bld\win-arm64\lcms2-*.conda) do (
+            conda create -y -p D:\lcms-runtime --override-channels -c conda-forge --strict-channel-priority python=3.12 "%%P"
+            if errorlevel 1 exit /b 1
+          )
+          if not exist D:\lcms-runtime\python.exe exit /b 1
+          D:\lcms-runtime\python.exe validation\native-runtime.py
+      - name: Retain package for inspection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lcms2-win-arm64
+          path: D:\bld\win-arm64\lcms2-*.conda
+          if-no-files-found: error
